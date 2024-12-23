@@ -12,6 +12,7 @@ import threading
 from memory.vector_store import VectorMemory
 from memory.config_store import ConfigStore
 from memory.checkpoint_manager import CheckpointManager
+import shutil  # Para obter o tamanho do terminal
 
 # Configurações globais
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -354,6 +355,23 @@ def list_system_checkpoints():
     except Exception as e:
         print(f"\033[91mErro ao listar checkpoints: {str(e)}\033[0m")
 
+def get_terminal_width():
+    """Retorna a largura do terminal"""
+    terminal_size = shutil.get_terminal_size()
+    return terminal_size.columns
+
+def print_user_message(message, timestamp=None):
+    """Imprime mensagem do usuário com fundo preenchendo a linha toda"""
+    width = get_terminal_width()
+    if timestamp:
+        # Imprime o timestamp com fundo preenchendo a linha
+        print(f"\033[96m\033[48;5;234m\033[3m{timestamp}{' ' * (width - len(timestamp))}\033[0m")
+    else:
+        # Calcula o espaço necessário para preencher a linha após a mensagem
+        prefix = "Você: "
+        padding = width - len(prefix) - len(message)
+        print(f"\033[96m\033[48;5;234m{prefix}{message}{' ' * padding}\033[0m")
+
 def main():
     """Função principal do assistente"""
     global groq_client, personality
@@ -393,14 +411,12 @@ def main():
         while True:
             try:
                 print()  # Linha extra antes da entrada do usuário
-                print("\033[96m\033[48;5;234mVocê: ", end="", flush=True)  # Cor de fundo escura
-                user_input = input().strip()
-                print("\033[0m", end="")  # Reset das cores
+                user_input = input("\033[96m\033[48;5;234mVocê: \033[0m").strip()
                 
                 if not user_input:
                     continue
                     
-                print(f"\033[96m\033[48;5;234m\033[3m{get_br_time()}\033[0m")  # Horário com fundo escuro
+                print_user_message(None, get_br_time())
                 
                 if user_input.lower() == 'sair':
                     print("\n\033[92mNexus:\033[0m Até logo! Foi um prazer ajudar!")
@@ -418,7 +434,7 @@ def main():
                     # Horário e código de restauração em verde e itálico
                     print(f"\033[92m\033[3m{get_br_time()}")
                     if checkpoint_id:
-                        print(f"\033[92m✓ !restore {checkpoint_id}\033[0m")
+                        print(f"\033[92m\033[3m✓ !restore {checkpoint_id}\033[0m")
                     print()  # Uma linha após a mensagem da IA
                 
             except EOFError:

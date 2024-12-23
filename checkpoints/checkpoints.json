@@ -69,11 +69,21 @@
         "messages": "messages.json",
         "chroma": "chroma_db"
       }
+    },
+    {
+      "id": "6ec3b080",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola...",
+      "timestamp": "2024-12-23T12:03:21.628451",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
     }
   ],
-  "current": "67cfc738",
+  "current": "6ec3b080",
   "metadata": {
-    "last_checkpoint": "2024-12-23T11:51:19.811550",
+    "last_checkpoint": "2024-12-23T12:03:21.628461",
     "version": "1.0"
   }
 }
