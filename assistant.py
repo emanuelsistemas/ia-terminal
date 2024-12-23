@@ -370,7 +370,8 @@ def print_user_message(message, timestamp=None):
         # Calcula o espaço necessário para preencher a linha após a mensagem
         prefix = "Você: "
         padding = width - len(prefix) - len(message)
-        print(f"\033[96m\033[48;5;234m{prefix}{message}{' ' * padding}\033[0m")
+        # Move o cursor uma linha acima e limpa a linha
+        print(f"\033[1A\033[2K\033[96m\033[48;5;234m{prefix}{message}{' ' * padding}\033[0m")
 
 def main():
     """Função principal do assistente"""
@@ -417,7 +418,7 @@ def main():
                 if not user_input:
                     continue
                 
-                # Imprime a mensagem com o fundo completo
+                # Imprime a mensagem com o fundo completo, substituindo a linha do input
                 print_user_message(user_input)
                 print_user_message(None, get_br_time())
                 
