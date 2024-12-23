@@ -309,11 +309,181 @@
         "messages": "messages.json",
         "chroma": "chroma_db"
       }
+    },
+    {
+      "id": "887b2768",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: crie um arquivo teste.txt com a mensagem de ola...",
+      "timestamp": "2024-12-23T12:39:11.743431",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "15f400a8",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola crie uma arquivo teste.txt com a mensagem de o...",
+      "timestamp": "2024-12-23T12:46:07.408655",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "5a822bdb",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: streaming state...",
+      "timestamp": "2024-12-23T12:48:23.144046",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "0749ae12",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: estou iniciando um projeto e precis ode uma ajuda...",
+      "timestamp": "2024-12-23T12:51:40.492985",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "e40ac2e6",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: preciso desenvolver um sistema ERP...",
+      "timestamp": "2024-12-23T12:52:48.564712",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "fb6d5927",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola ja ouviu fala do rustdesk ?...",
+      "timestamp": "2024-12-23T12:53:45.221624",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "3764d1b7",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: por acaso conseguimos desenvolver este projeto por...",
+      "timestamp": "2024-12-23T12:55:37.102513",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "5944610f",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: esse sistema seria somente para minha empresa, nao...",
+      "timestamp": "2024-12-23T12:59:50.929650",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "a4991de7",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: isso vai ser de inicio um prototipo, nao quero mui...",
+      "timestamp": "2024-12-23T13:01:04.835382",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "a4613e3e",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: certo, como poderiamos contruir este projeto ?...",
+      "timestamp": "2024-12-23T13:03:57.757324",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "9bc0cc3d",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola o que estavamos conversando ?...",
+      "timestamp": "2024-12-23T13:04:26.379100",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "0928a08e",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola o que estavamos conevrsando anteriormente mesm...",
+      "timestamp": "2024-12-23T13:15:11.175821",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "a5564373",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola ja ouviu fala do rustdesk ?...",
+      "timestamp": "2024-12-23T13:16:51.457027",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "b33451c3",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola o que estavamos falando mesmo ?...",
+      "timestamp": "2024-12-23T13:18:02.830583",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "bb477c39",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola estavamos falando do que ?...",
+      "timestamp": "2024-12-23T13:36:44.278399",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "e01255a8",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola sobre o que estamos nos falando anteriormente ...",
+      "timestamp": "2024-12-23T13:38:06.997489",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "3bd1ab6e",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola ja ouviu fala do rustdesk ?...",
+      "timestamp": "2024-12-23T13:41:52.494590",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
     }
   ],
-  "current": "3153383b",
+  "current": "3bd1ab6e",
   "metadata": {
-    "last_checkpoint": "2024-12-23T12:35:28.932119",
+    "last_checkpoint": "2024-12-23T13:41:52.494600",
     "version": "1.0"
   }
 }

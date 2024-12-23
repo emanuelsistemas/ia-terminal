@@ -18,9 +18,16 @@ import shutil  # Para obter o tamanho do terminal
 base_dir = os.path.dirname(os.path.abspath(__file__))
 WORKSPACE_DIR = os.path.join(base_dir, 'workspace')
 DB_PATH = os.path.join(base_dir, 'chat_history.db')
-CHROMA_DIR = os.path.join(base_dir, 'chroma_db')
-CONFIG_DIR = os.path.join(base_dir, 'config_db')
+CONFIG_DIR = os.path.join(base_dir, 'config')
 CHECKPOINT_DIR = os.path.join(base_dir, 'checkpoints')
+CHROMA_DIR = os.path.join(base_dir, 'chroma_db')
+
+# Garante que os diretórios existem
+os.makedirs(WORKSPACE_DIR, exist_ok=True)
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+os.makedirs(CHROMA_DIR, exist_ok=True)
+os.makedirs(CONFIG_DIR, exist_ok=True)
+os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 # Inicializa o banco de dados
 def init_db():
@@ -52,26 +59,40 @@ class MessageCache:
         self.vector_memory = VectorMemory(CHROMA_DIR)
 
     def add(self, role, content):
-        """Adiciona mensagem ao cache e arquiva antigas se necessário"""
+        """Adiciona mensagem ao cache e ao ChromaDB"""
+        # Adiciona ao cache local
         self.messages.append((role, content))
         
-        # Se excedeu o limite, arquiva as mensagens mais antigas
+        # Se excedeu o limite, remove as mensagens mais antigas do cache
         if len(self.messages) > self.max_size:
-            # Pega as mensagens que serão arquivadas
-            to_archive = self.messages[:-self.max_size]
-            # Atualiza o cache para manter só as mais recentes
             self.messages = self.messages[-self.max_size:]
-            # Arquiva no Chroma
-            self.vector_memory.archive_messages(to_archive)
+        
+        # Sempre adiciona ao ChromaDB para persistência
+        self.vector_memory.add_message(role, content)
 
     def get_all(self):
+        """Retorna todas as mensagens do cache"""
         return self.messages
 
     def search_context(self, query):
-        """Busca contexto relevante no histórico"""
-        return self.vector_memory.search_context(query)
+        """Busca contexto relevante primeiro no ChromaDB, depois no cache local"""
+        # Primeiro busca no ChromaDB
+        chroma_results = self.vector_memory.search_context(query)
+        if chroma_results:
+            return chroma_results
+        
+        # Se não encontrou nada no ChromaDB, usa o cache local
+        if self.messages:
+            context = []
+            for role, content in self.messages[-3:]:  # Últimas 3 mensagens
+                prefix = "Usuário: " if role == "user" else "Assistente: "
+                context.append(f"{prefix}{content}")
+            return context
+        
+        return []
 
     def clear(self):
+        """Limpa o cache e o ChromaDB"""
         self.messages = []
         self.vector_memory.clear()
 
@@ -229,6 +250,35 @@ def create_system_checkpoint(message):
         print(f"\033[91mErro ao criar checkpoint: {str(e)}\033[0m")
         return None
 
+def create_file(filename, content):
+    """Cria um arquivo com o conteúdo especificado no diretório workspace"""
+    try:
+        # Streaming state 1: Iniciando
+        print_with_typing("⚡ Iniciando criação do arquivo...", delay=0.02)
+        
+        # Garante que o nome do arquivo é seguro
+        safe_filename = os.path.basename(filename)
+        print_with_typing("🔍 Validando nome do arquivo...", delay=0.02)
+        
+        # Garante que o diretório workspace existe
+        if not os.path.exists(WORKSPACE_DIR):
+            print_with_typing("📁 Criando diretório workspace...", delay=0.02)
+            os.makedirs(WORKSPACE_DIR)
+            
+        # Caminho completo do arquivo
+        filepath = os.path.join(WORKSPACE_DIR, safe_filename)
+        print_with_typing("📝 Preparando para escrever...", delay=0.02)
+        
+        # Cria o arquivo com o conteúdo
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        print_with_typing("✅ Arquivo criado com sucesso!", delay=0.02)
+        return True, f"Arquivo '{safe_filename}' criado com sucesso em {WORKSPACE_DIR}"
+    except Exception as e:
+        print_with_typing("❌ Erro ao criar arquivo!", delay=0.02)
+        return False, f"Erro ao criar arquivo: {str(e)}"
+
 def handle_user_input(user_input):
     """Processa entrada do usuário com sistema de memória em camadas"""
     global groq_client, personality
@@ -252,6 +302,21 @@ def handle_user_input(user_input):
             list_system_checkpoints()
             return "Lista de checkpoints exibida acima!"
             
+        # Processa comando de criação de arquivo
+        if user_input.lower().startswith("crie um arquivo "):
+            # Remove o comando inicial
+            params = user_input[16:].strip()
+            
+            # Tenta extrair nome do arquivo e conteúdo
+            if " com " in params:
+                filename, content = params.split(" com ", 1)
+                filename = filename.strip()
+                content = content.strip()
+                
+                # Cria o arquivo
+                success, message = create_file(filename, content)
+                return message, None if success else None
+        
         # Cria checkpoint automático antes de cada resposta da IA
         checkpoint_id = create_system_checkpoint(
             f"Checkpoint automático antes da resposta: {user_input[:50]}..."
@@ -266,13 +331,25 @@ def handle_user_input(user_input):
         # Gera resposta com IA
         if groq_client:
             messages = [
-                {"role": "system", "content": "Você é o Nexus, um assistente virtual em português brasileiro, desenvolvido para ajudar com tarefas de programação e sistema."},
-                {"role": "user", "content": user_input}
+                {"role": "system", "content": "Você é um assistente virtual chamado Nexus. Mantenha suas respostas naturais e diretas. Se o usuário perguntar sobre conversas anteriores e não houver contexto fornecido, seja honesto e diga que não tem acesso ao histórico anterior neste momento."},
             ]
             
-            # Se houver contexto relevante, adiciona ao prompt
+            # Busca contexto relevante no histórico
+            context = message_cache.search_context(user_input)
             if context:
-                messages.insert(1, {"role": "system", "content": f"Contexto relevante: {context}"})
+                context_str = "\n".join(context)
+                context_prompt = f"Histórico relevante da conversa:\n{context_str}\n\nUse estas informações para responder ao usuário de forma precisa sobre o que foi discutido anteriormente."
+                messages.append({"role": "system", "content": context_prompt})
+            else:
+                messages.append({"role": "system", "content": "Não foi encontrado histórico de conversas anteriores no momento."})
+            
+            # Adiciona histórico recente do cache
+            recent_messages = message_cache.get_all()[-5:]  # Últimas 5 mensagens
+            for msg in recent_messages:
+                messages.append({"role": msg[0], "content": msg[1]})
+            
+            # Adiciona mensagem atual
+            messages.append({"role": "user", "content": user_input})
             
             completion = groq_client.chat.completions.create(
                 model="mixtral-8x7b-32768",
@@ -363,18 +440,20 @@ def get_terminal_width():
 def print_user_message(message, timestamp=None):
     """Imprime mensagem do usuário com fundo preenchendo a linha toda"""
     width = get_terminal_width()
+    
+    # Imprime linha em branco com fundo
+    print(f"\033[48;5;234m{' ' * width}\033[0m")
+    
+    if message:
+        # Imprime mensagem com fundo
+        print(f"\033[48;5;234m \033[96mVocê:\033[0m\033[96m {message}\033[48;5;234m{' ' * (width - len(message) - 8)}\033[0m")
+    
     if timestamp:
-        # Imprime o timestamp com fundo preenchendo a linha
-        print(f"\033[96m\033[48;5;234m {timestamp}{' ' * (width - len(timestamp) - 1)}\033[0m")  # -1 para o espaço inicial
-        print(f"\033[96m\033[48;5;234m{' ' * width}\033[0m")  # Linha abaixo
-    else:
-        # Calcula o espaço necessário para preencher a linha após a mensagem
-        prefix = " Você: "  # Adicionado espaço no início
-        padding = width - len(prefix) - len(message)
-        # Move o cursor uma linha acima e limpa a linha
-        print(f"\033[1A\033[2K\033[96m\033[48;5;234m{' ' * width}\033[0m")  # Linha acima
-        print(f"\033[96m\033[48;5;234m{prefix}{message}{' ' * padding}\033[0m")
-        # Não imprime linha abaixo aqui pois o timestamp virá em seguida
+        # Imprime timestamp com fundo
+        print(f"\033[48;5;234m \033[96m{timestamp}\033[48;5;234m{' ' * (width - len(timestamp) - 2)}\033[0m")
+    
+    # Imprime linha em branco com fundo
+    print(f"\033[48;5;234m{' ' * width}\033[0m")
 
 def main():
     """Função principal do assistente"""
@@ -424,12 +503,8 @@ def main():
                 # Move o cursor duas linhas para cima para sobrescrever a linha vazia e o input
                 print("\033[2A", end="")
                 
-                # Adiciona uma linha extra antes da mensagem formatada
-                print()
-                
                 # Imprime a mensagem e o timestamp juntos
-                print_user_message(user_input)
-                print_user_message(None, get_br_time())
+                print_user_message(user_input, get_br_time())
                 
                 if user_input.lower() == 'sair':
                     print("\n\033[92mNexus:\033[0m Até logo! Foi um prazer ajudar!")
