@@ -365,17 +365,16 @@ def print_user_message(message, timestamp=None):
     width = get_terminal_width()
     if timestamp:
         # Imprime o timestamp com fundo preenchendo a linha
-        print(f"\033[96m\033[48;5;234m{' ' * width}\033[0m")  # Linha acima
-        print(f"\033[96m\033[48;5;234m\033[3m{timestamp}{' ' * (width - len(timestamp))}\033[0m")
+        print(f"\033[96m\033[48;5;234m {timestamp}{' ' * (width - len(timestamp) - 1)}\033[0m")  # -1 para o espaço inicial
         print(f"\033[96m\033[48;5;234m{' ' * width}\033[0m")  # Linha abaixo
     else:
         # Calcula o espaço necessário para preencher a linha após a mensagem
-        prefix = "Você: "
+        prefix = " Você: "  # Adicionado espaço no início
         padding = width - len(prefix) - len(message)
         # Move o cursor uma linha acima e limpa a linha
         print(f"\033[1A\033[2K\033[96m\033[48;5;234m{' ' * width}\033[0m")  # Linha acima
         print(f"\033[96m\033[48;5;234m{prefix}{message}{' ' * padding}\033[0m")
-        print(f"\033[96m\033[48;5;234m{' ' * width}\033[0m")  # Linha abaixo
+        # Não imprime linha abaixo aqui pois o timestamp virá em seguida
 
 def main():
     """Função principal do assistente"""
@@ -415,14 +414,20 @@ def main():
         
         while True:
             try:
-                print()  # Linha extra antes da entrada do usuário
+                print()  # Linha extra antes do input para manter espaçamento
                 print("Você: ", end="", flush=True)  # Input sem formatação
                 user_input = input().strip()
                 
                 if not user_input:
                     continue
                 
-                # Imprime a mensagem com o fundo completo, substituindo a linha do input
+                # Move o cursor duas linhas para cima para sobrescrever a linha vazia e o input
+                print("\033[2A", end="")
+                
+                # Adiciona uma linha extra antes da mensagem formatada
+                print()
+                
+                # Imprime a mensagem e o timestamp juntos
                 print_user_message(user_input)
                 print_user_message(None, get_br_time())
                 
@@ -443,7 +448,7 @@ def main():
                     print(f"\033[92m\033[3m{get_br_time()}")
                     if checkpoint_id:
                         print(f"\033[92m\033[3m✓ !restore {checkpoint_id}\033[0m")
-                    print()  # Uma linha após a mensagem da IA
+                        print()  # Linha extra após o restore
                 
             except EOFError:
                 print("\n\033[92mNexus:\033[0m Até logo! Foi um prazer ajudar!")

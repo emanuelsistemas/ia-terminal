@@ -119,11 +119,201 @@
         "messages": "messages.json",
         "chroma": "chroma_db"
       }
+    },
+    {
+      "id": "93a1fe5e",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola...",
+      "timestamp": "2024-12-23T12:16:48.054811",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "1e0be961",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: como vai...",
+      "timestamp": "2024-12-23T12:17:12.724638",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "891b0045",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola...",
+      "timestamp": "2024-12-23T12:21:48.738762",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "1f879433",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: como vai...",
+      "timestamp": "2024-12-23T12:22:01.525560",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "b08e0d37",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola...",
+      "timestamp": "2024-12-23T12:24:38.243665",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "a3f9afc9",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: como vai...",
+      "timestamp": "2024-12-23T12:24:42.306794",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "af86b327",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: preciso de uma ajuda...",
+      "timestamp": "2024-12-23T12:24:55.402199",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "816aba8b",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola...",
+      "timestamp": "2024-12-23T12:27:00.127448",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "155b2c3c",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: cini va...",
+      "timestamp": "2024-12-23T12:27:04.716618",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "9e24ba73",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola...",
+      "timestamp": "2024-12-23T12:27:33.715369",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "2b904dc6",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: cini vau'...",
+      "timestamp": "2024-12-23T12:27:38.477058",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "d9f29c3f",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola...",
+      "timestamp": "2024-12-23T12:30:30.412280",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "9230a458",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: como vai...",
+      "timestamp": "2024-12-23T12:30:34.275668",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "214e31cd",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: preciso de uma ajuda...",
+      "timestamp": "2024-12-23T12:30:45.718559",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "baa52c96",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola como vai...",
+      "timestamp": "2024-12-23T12:32:45.525258",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "6108a81a",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: preciso de uma ajuda...",
+      "timestamp": "2024-12-23T12:32:54.708753",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "167516d3",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola como vai...",
+      "timestamp": "2024-12-23T12:35:17.157828",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "a59b1441",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: preciso de uma ajuda...",
+      "timestamp": "2024-12-23T12:35:22.395263",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "3153383b",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: criar um sistema...",
+      "timestamp": "2024-12-23T12:35:28.932105",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
     }
   ],
-  "current": "7936bd17",
+  "current": "3153383b",
   "metadata": {
-    "last_checkpoint": "2024-12-23T12:13:13.538236",
+    "last_checkpoint": "2024-12-23T12:35:28.932119",
     "version": "1.0"
   }
 }

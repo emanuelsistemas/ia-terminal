@@ -1,0 +1,10 @@
+[
+  {
+    "role": "user",
+    "content": "ola"
+  },
+  {
+    "role": "assistant",
+    "content": "Ol\u00e1! Eu sou o Nexus, o assistente virtual em portugu\u00eas brasileiro desenvolvido para ajudar com tarefas de programa\u00e7\u00e3o e sistemas. Em que posso ajudar? Digite \"ajuda\" para ver uma lista de comandos e fun\u00e7\u00f5es que ofere\u00e7o."
+  }
+]

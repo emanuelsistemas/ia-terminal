@@ -35,25 +35,65 @@ def main():
 - Configurado com temperatura 0.7
 - Limite de 1000 tokens por resposta
 
-### 3. Formatação e Cores
-O sistema usa um esquema de cores consistente para melhor UX:
+### 3. Formatação das Mensagens
 
-#### 3.1 Mensagens do Usuário
-```
-Você: [mensagem]              # Azul (\033[96m) com fundo escuro #12141d (\033[48;5;234m)
-[horário]                     # Azul + Itálico + fundo escuro (\033[96m\033[3m\033[48;5;234m)
-```
+### Estilo Visual do Chat
 
-#### 3.2 Mensagens da IA
-```
-Nexus: [mensagem]             # Verde (\033[92m)
-[horário]                     # Verde (\033[92m)
-✓ !restore [checkpoint_id]    # Verde (\033[92m)
-```
+O chat foi projetado para ter uma aparência moderna e profissional, com elementos visuais bem definidos para cada tipo de mensagem.
 
-#### 3.3 Espaçamento
-- Uma linha em branco entre a mensagem do usuário e a resposta da IA
-- Uma linha em branco após o código de restauração da IA
+#### Mensagem do Usuário
+- Fundo escuro (#12141d, código ANSI 234) preenchendo toda a largura do terminal
+- Estrutura:
+  ```
+  [linha com fundo escuro]
+  [linha com fundo escuro] Você: mensagem  (com espaço no início)
+   HH:MM:SS  (com espaço no início)
+  [linha com fundo escuro]
+  ```
+- Cores:
+  - Texto em ciano claro (código ANSI 96)
+  - Fundo em cinza escuro (código ANSI 48;5;234)
+
+#### Mensagem do Assistente
+- Estrutura:
+  ```
+  Nexus: mensagem
+  HH:MM:SS (em verde e itálico)
+  !restore XXXXXXXX (em verde e itálico)
+  ```
+- Cores:
+  - Nome "Nexus:" em verde (código ANSI 92)
+  - Horário e código de restore em verde e itálico (códigos ANSI 92 e 3)
+
+### Espaçamento
+- Uma linha em branco entre o código de restore e a próxima mensagem do usuário
+- Uma linha em branco entre a mensagem do usuário e a resposta do assistente
+- Uma linha em branco após o código de restore
+- Sem linha extra entre a mensagem do usuário e seu horário
+
+### Detalhes Técnicos
+- Utiliza códigos ANSI para:
+  - Movimentação do cursor (\033[1A, \033[2A)
+  - Limpeza de linha (\033[2K)
+  - Formatação de cores e estilos
+- Calcula automaticamente a largura do terminal para preencher o fundo
+- Mantém espaçamento consistente durante a digitação e após o envio da mensagem
+
+### Exemplo de Fluxo
+```
+Nexus: Como posso ajudar?
+09:17:12
+!restore 65392253
+
+[Fundo escuro] Você: olá
+ 09:17:13
+[Fundo escuro]
+
+Nexus: Olá! Como posso ajudar?
+09:17:14
+!restore 891b0045
+
+```
 
 ### 4. Sistema de Checkpoints
 
@@ -101,7 +141,7 @@ checkpoints/
    ```python
    print(f"\033[92mNexus:\033[0m {response}")
    print(f"\033[92m{get_br_time()}")
-   print(f"\033[92m✓ !restore {checkpoint_id}\033[0m")
+   print(f"\033[92m!restore {checkpoint_id}\033[0m")
    ```
 
 ### 6. Variáveis de Ambiente
