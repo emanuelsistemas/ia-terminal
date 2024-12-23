@@ -1,30 +1,48 @@
-#!/usr/bin/env python3
+import os
 import sys
+import json
+import sqlite3
 import time
 from datetime import datetime
-import os
-import sqlite3
-from dotenv import load_dotenv
-from llm.groq_client import GroqClient
-from prompts.prompt_manager import PromptManager
 import pytz
+import openai
+from groq import Groq
+from dotenv import load_dotenv
 import threading
 from memory.vector_store import VectorMemory
-import json
-
-# Configura o caminho do .env
-ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
-print(f"🔍 Procurando .env em: {ENV_PATH}")
-
-# Carrega variáveis de ambiente e mostra debug
-load_dotenv(dotenv_path=ENV_PATH, verbose=True)
-print(f"📁 Diretório atual: {os.getcwd()}")
-print(f"🔑 GROQ_API_KEY: {'***' + os.getenv('GROQ_API_KEY')[-4:] if os.getenv('GROQ_API_KEY') else 'não encontrado'}")
+from memory.config_store import ConfigStore
+from memory.checkpoint_manager import CheckpointManager
 
 # Configurações globais
-WORKSPACE_DIR = "/root/projetos/chat-ia-terminal/workspace"
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'chat_history.db')
-CHROMA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'chroma_db')
+base_dir = os.path.dirname(os.path.abspath(__file__))
+WORKSPACE_DIR = os.path.join(base_dir, 'workspace')
+DB_PATH = os.path.join(base_dir, 'chat_history.db')
+CHROMA_DIR = os.path.join(base_dir, 'chroma_db')
+CONFIG_DIR = os.path.join(base_dir, 'config_db')
+CHECKPOINT_DIR = os.path.join(base_dir, 'checkpoints')
+
+# Inicializa o banco de dados
+def init_db():
+    """Inicializa o banco de dados SQLite"""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS chat_history
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  role TEXT NOT NULL,
+                  content TEXT NOT NULL,
+                  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    conn.commit()
+    conn.close()
+
+# Inicializa o banco de dados no início
+init_db()
+
+# Variáveis globais
+message_cache = None
+config_store = None
+checkpoint_manager = None
+groq_client = None
+personality = None
 
 class MessageCache:
     def __init__(self, max_size=10):
@@ -56,475 +74,367 @@ class MessageCache:
         self.messages = []
         self.vector_memory.clear()
 
-def init_db():
-    """Inicializa o banco de dados SQLite"""
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    
-    # Tabela para operações com arquivos
-    c.execute('''CREATE TABLE IF NOT EXISTS files
-                 (filename text, action text, timestamp text)''')
-    
-    # Tabela para histórico de conversas
-    c.execute('''CREATE TABLE IF NOT EXISTS messages
-                 (role text, content text, timestamp text)''')
-    
-    conn.commit()
-    conn.close()
+class FileState:
+    def __init__(self):
+        self.current_file = None
+        self.open_files = set()
 
-def add_to_history(filename, action):
-    """Adiciona uma ação ao histórico"""
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("INSERT INTO files VALUES (?, ?, ?)", 
-              (filename, action, datetime.now().isoformat()))
-    conn.commit()
-    conn.close()
+def get_br_time():
+    """
+    Retorna a hora atual no fuso horário do Brasil formatada
+    
+    Returns:
+        str: Hora atual no formato HH:MM:SS
+    """
+    tz = pytz.timezone('America/Sao_Paulo')
+    now = datetime.now(tz)
+    return now.strftime("%H:%M:%S")
 
-def get_last_file():
-    """Retorna o último arquivo manipulado"""
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT filename FROM files ORDER BY timestamp DESC LIMIT 1")
-    result = c.fetchone()
-    conn.close()
-    return result[0] if result else None
+def clear_screen():
+    """Limpa a tela do terminal"""
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def print_with_typing(text: str, delay: float = 0.01):
+    """
+    Imprime texto com efeito de digitação
+    
+    Args:
+        text: Texto a ser impresso
+        delay: Atraso entre cada caractere
+    """
+    for char in text:
+        sys.stdout.write(char)
+        sys.stdout.flush()
+        time.sleep(delay)
+    sys.stdout.write('\n')
+    sys.stdout.flush()
+
+def initialize_systems():
+    """Inicializa todos os sistemas necessários"""
+    global message_cache, config_store, checkpoint_manager
+    
+    # Inicializa sistemas
+    message_cache = MessageCache()
+    config_store = ConfigStore(CONFIG_DIR)
+    checkpoint_manager = CheckpointManager(CHECKPOINT_DIR)
 
 def add_message_to_history(role, content):
-    """Adiciona uma mensagem ao histórico e cache"""
-    # Adiciona ao cache primeiro (mais rápido)
+    """Adiciona mensagem ao histórico"""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT INTO chat_history (role, content) VALUES (?, ?)",
+              (role, content))
+    conn.commit()
+    conn.close()
+    
+    # Adiciona ao cache de memória também
     message_cache.add(role, content)
-    
-    # Adiciona ao banco de dados de forma assíncrona
-    threading.Thread(target=_async_save_message, 
-                    args=(role, content)).start()
 
-def _async_save_message(role, content):
-    """Salva mensagem no banco de dados de forma assíncrona"""
+def register_service_config(name, config_data):
+    """Registra configuração de um novo serviço com verificações de segurança"""
     try:
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("INSERT INTO messages VALUES (?, ?, ?)",
-                  (role, content, datetime.now().isoformat()))
-        conn.commit()
-        conn.close()
-    except Exception as e:
-        print(f"\033[91mErro ao salvar mensagem: {str(e)}\033[0m")
-
-def get_conversation_context(max_messages=10):
-    """Retorna contexto primeiro do cache, depois do banco"""
-    # Tenta pegar do cache primeiro
-    cached = message_cache.get_all()
-    if len(cached) >= max_messages:
-        messages = cached[-max_messages:]
-    else:
-        # Se precisar mais mensagens, busca do banco
-        try:
-            conn = sqlite3.connect(DB_PATH)
-            c = conn.cursor()
-            c.execute("""
-                SELECT role, content 
-                FROM messages 
-                ORDER BY timestamp DESC 
-                LIMIT ?
-            """, (max_messages - len(cached),))
-            db_messages = c.fetchall()
-            conn.close()
+        # Verifica se o serviço já existe
+        exists, msg = config_store.verify_service_exists(name)
+        if exists:
+            print(f"\033[93mAtenção: {msg}\033[0m")
+            return False
             
-            # Combina mensagens do banco com cache
-            messages = db_messages + cached
-        except Exception as e:
-            print(f"\033[91mErro ao buscar mensagens: {str(e)}\033[0m")
-            messages = cached
-
-    # Formata o contexto
-    context = []
-    for role, content in messages:
-        if role == "user":
-            context.append(f"Usuário: {content}")
-        else:
-            context.append(f"Assistente: {content}")
-    
-    return "\n".join(context)
-
-def get_chat_context(user_input):
-    """Retorna contexto inteligente combinando cache e vector store"""
-    # Sempre inclui as últimas mensagens do cache
-    recent = get_conversation_context(max_messages=5)
-    
-    # Busca mensagens relevantes no histórico
-    historical = message_cache.search_context(user_input)
-    
-    # Se encontrou contexto histórico relevante
-    if historical:
-        context = "Contexto histórico relevante:\n"
-        context += "\n".join(historical)
-        context += "\n\nConversa atual:\n"
-        context += recent
-    else:
-        context = recent
-    
-    return context if context else ""
-
-def handle_file_operation(text):
-    global file_state
-    
-    if file_state.state == "idle":
-        if "crie um arquivo" in text.lower():
-            parts = text.lower().split("com")
-            if len(parts) >= 2:
-                # Remove "crie um arquivo" e espaços extras
-                raw_filename = parts[0].replace("crie um arquivo", "").strip()
-                
-                try:
-                    filepath = get_safe_filepath(raw_filename)
-                    file_state.filename = filepath  # Guarda o caminho completo
-                    file_state.content = parts[1].strip().strip('.')
-                    file_state.state = "waiting_confirmation"
-                    file_state.action = "create"
-                    
-                    # Indica se está usando o workspace ou caminho personalizado
-                    if filepath.startswith(WORKSPACE_DIR):
-                        location_msg = f"Local (workspace): {filepath}"
-                    else:
-                        location_msg = f"Local: {filepath}"
-                    
-                    return f"📝 Criar arquivo:\n{location_msg}\nConteúdo: {file_state.content}\nConfirma? (S/N): "
-                except ValueError as e:
-                    file_state.state = "idle"
-                    return f"❌ {str(e)}"
+        # Se tiver porta especificada, verifica disponibilidade
+        if "port" in config_data:
+            available, reason = config_store.is_port_available(config_data["port"])
+            if not available:
+                print(f"\033[93mAtenção: {reason}\033[0m")
+                # Tenta encontrar uma porta alternativa
+                next_port, msg = config_store.get_next_available_port(
+                    start_port=3000,
+                    preferred_ports=[8000, 8080, 8888, 9000]
+                )
+                if next_port:
+                    print(f"\033[92mSugestão: Use a porta {next_port} que está disponível\033[0m")
+                return False
         
-        elif any(word in text.lower() for word in ["delete", "apague", "remova"]):
-            # Tenta identificar o arquivo no comando
-            filename = None
-            if "este arquivo" in text.lower() or "arquivo que criamos" in text.lower():
-                filename = get_last_file()
-                if not filename:
-                    return "❌ Não encontrei nenhum arquivo no histórico recente."
-            else:
-                # Tenta extrair o nome do arquivo do comando
-                words = text.lower().split()
-                try:
-                    idx = next(i for i, word in enumerate(words) 
-                             if word in ["arquivo", "file"])
-                    if idx + 1 < len(words):
-                        filename = words[idx + 1]
-                except StopIteration:
-                    return "❌ Não consegui identificar qual arquivo você quer deletar."
+        # Registra o serviço
+        success, msg = config_store.register_service(name, config_data)
+        if not success:
+            print(f"\033[91mErro: {msg}\033[0m")
+            return False
+            
+        # Se tiver porta, registra
+        if "port" in config_data:
+            success, msg = config_store.register_port(config_data["port"], name)
+            if not success:
+                print(f"\033[91mErro ao registrar porta: {msg}\033[0m")
+                return False
+            
+        # Registra dependências
+        if "dependencies" in config_data:
+            for dep_name, version in config_data["dependencies"].items():
+                config_store.register_dependency(dep_name, version, name)
+                
+        # Registra variáveis de ambiente
+        if "environment" in config_data:
+            for env_name, env_desc in config_data["environment"].items():
+                config_store.set_env_var(env_name, env_desc, name)
+                
+        print(f"\033[92mServiço '{name}' registrado com sucesso!\033[0m")
+        return True
+        
+    except Exception as e:
+        print(f"\033[91mErro ao registrar configuração: {str(e)}\033[0m")
+        return False
 
-            if filename:
-                file_state.filename = filename
-                file_state.state = "waiting_confirmation"
-                file_state.action = "delete"
-                filepath = get_safe_filepath(filename)
-                if os.path.exists(filepath):
-                    return f"🗑️ Deletar arquivo:\nLocal: {filepath}\nConfirma? (S/N): "
-                else:
-                    file_state.state = "idle"
-                    return f"❌ Arquivo não encontrado em:\n{filepath}"
-    
-    elif file_state.state == "waiting_confirmation":
-        file_state.state = "idle"
-        if text.lower().strip() == "s":
-            if file_state.action == "create":
-                success, filepath = create_file(file_state.filename, file_state.content)
-                if success:
-                    return f"✅ Arquivo criado com sucesso!\nLocal: {filepath}"
-                else:
-                    return f"❌ Erro ao criar o arquivo '{file_state.filename}'."
-            elif file_state.action == "delete":
-                success = delete_file(file_state.filename)
-                if success:
-                    return f"✅ Arquivo deletado com sucesso!"
-                else:
-                    return f"❌ Erro ao deletar o arquivo '{file_state.filename}'."
-        else:
-            return "❌ Operação cancelada."
-    
+def get_next_available_port():
+    """Obtém próxima porta disponível com verificações de segurança"""
+    port, msg = config_store.get_next_available_port()
+    if port:
+        return port
+    print(f"\033[91mErro: {msg}\033[0m")
     return None
+
+def stop_service(name):
+    """Nunca para um serviço diretamente, apenas marca para revisão"""
+    success, msg = config_store.stop_service(name)
+    print(f"\033[93m{msg}\033[0m")
+    return success
+
+def verify_system_status():
+    """Verifica estado atual do sistema"""
+    # Verifica portas que precisam de atenção
+    attention = config_store.verify_system_ports()
+    if attention:
+        print("\n\033[93mPortas que precisam de atenção:\033[0m")
+        for item in attention:
+            print(f"- Porta {item['port']} ({item['service']}): {item['issue']}")
+    
+    # Obtém visão geral
+    overview = config_store.get_system_overview()
+    print("\n\033[92mVisão Geral do Sistema:\033[0m")
+    print(f"- Serviços Ativos: {overview['active_services']}")
+    print(f"- Portas em Uso: {overview['ports_in_use']}")
+    print(f"- Total de Dependências: {overview['total_dependencies']}")
+    print(f"- Variáveis de Ambiente: {overview['environment_vars']}")
+    print(f"- Última Atualização: {overview['last_updated']}")
+
+def create_system_checkpoint(message):
+    """Cria um checkpoint do sistema"""
+    try:
+        checkpoint_id = checkpoint_manager.create_checkpoint(
+            message=message,
+            config_store=config_store,
+            message_cache=message_cache
+        )
+        return checkpoint_id
+    except Exception as e:
+        print(f"\033[91mErro ao criar checkpoint: {str(e)}\033[0m")
+        return None
 
 def handle_user_input(user_input):
     """Processa entrada do usuário com sistema de memória em camadas"""
     global groq_client, personality
     
     try:
+        # Comandos especiais de checkpoint
+        if user_input.startswith("!checkpoint "):
+            message = user_input[11:].strip()
+            checkpoint_id = create_system_checkpoint(message)
+            if checkpoint_id:
+                print(f"\n✓ Checkpoint criado: {checkpoint_id}")
+                print(f"Para restaurar: !restore {checkpoint_id}")
+            return None
+            
+        elif user_input.startswith("!restore "):
+            checkpoint_id = user_input[9:].strip()
+            restore_system_checkpoint(checkpoint_id)
+            return "Sistema restaurado com sucesso!"
+            
+        elif user_input == "!checkpoints":
+            list_system_checkpoints()
+            return "Lista de checkpoints exibida acima!"
+            
+        # Cria checkpoint automático antes de cada resposta da IA
+        checkpoint_id = create_system_checkpoint(
+            f"Checkpoint automático antes da resposta: {user_input[:50]}..."
+        )
+        
         # Adiciona mensagem do usuário ao histórico
         add_message_to_history("user", user_input)
         
-        # Verifica operações de arquivo (não precisa de IA)
-        file_response = handle_file_operation(user_input)
-        if file_response:
-            add_message_to_history("assistant", file_response)
-            return file_response
+        # Busca contexto relevante
+        context = message_cache.search_context(user_input)
+        
+        # Gera resposta com IA
+        if groq_client:
+            messages = [
+                {"role": "system", "content": "Você é o Nexus, um assistente virtual em português brasileiro, desenvolvido para ajudar com tarefas de programação e sistema."},
+                {"role": "user", "content": user_input}
+            ]
             
-        # Processa com o modelo mantendo contexto inteligente
-        if groq_client and personality:
-            # Obtém contexto combinado (recente + histórico relevante)
-            context = get_chat_context(user_input)
+            # Se houver contexto relevante, adiciona ao prompt
+            if context:
+                messages.insert(1, {"role": "system", "content": f"Contexto relevante: {context}"})
             
-            # Se for comando simples, não precisa de contexto
-            simple_commands = ["ajuda", "status", "limpar", "sair"]
-            if any(cmd in user_input.lower() for cmd in simple_commands):
-                prompt = user_input
-            else:
-                prompt = f"{context}\n\nUsuário: {user_input}" if context else user_input
-            
-            response = groq_client.generate_response(
-                prompt=prompt,
-                system=personality
+            completion = groq_client.chat.completions.create(
+                model="mixtral-8x7b-32768",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1000,
+                top_p=1,
+                stream=False
             )
             
-            # Adiciona resposta ao histórico de forma assíncrona
-            threading.Thread(target=add_message_to_history,
-                           args=("assistant", response)).start()
+            response = completion.choices[0].message.content
+            add_message_to_history("assistant", response)
             
-            return response
+            # Retorna a resposta com a cor verde
+            response = f"\033[92m{response}\033[0m"
+            return response, checkpoint_id
+        else:
+            return "Desculpe, o suporte a IA não está disponível no momento.", None
             
     except Exception as e:
         print(f"\033[91mErro ao processar mensagem: {str(e)}\033[0m")
-        return "Desculpe, ocorreu um erro ao processar sua mensagem."
+        return "Desculpe, ocorreu um erro ao processar sua mensagem.", None
+
+def restore_system_checkpoint(checkpoint_id):
+    """Restaura o sistema para um checkpoint específico"""
+    try:
+        # Obtém info do checkpoint
+        checkpoint = checkpoint_manager.get_checkpoint_info(checkpoint_id)
+        if not checkpoint:
+            print(f"\033[91mCheckpoint '{checkpoint_id}' não encontrado\033[0m")
+            return False
+            
+        print(f"\n\033[93mRestaurando sistema para checkpoint: {checkpoint_id}\033[0m")
+        print(f"Mensagem: {checkpoint['message']}")
+        print(f"Criado em: {checkpoint['timestamp']}")
+        
+        # Confirma com usuário
+        confirm = input("\nTem certeza? Todas as alterações após este ponto serão perdidas [s/N]: ")
+        if confirm.lower() != 's':
+            print("\033[93mOperação cancelada pelo usuário\033[0m")
+            return False
+            
+        # Restaura
+        success = checkpoint_manager.restore_checkpoint(checkpoint_id)
+        
+        if success:
+            print("\n\033[92m✓ Sistema restaurado com sucesso!\033[0m")
+            verify_system_status()  # Mostra estado atual
+        else:
+            print("\033[91mErro ao restaurar sistema\033[0m")
+            
+        return success
+        
+    except Exception as e:
+        print(f"\033[91mErro ao restaurar checkpoint: {str(e)}\033[0m")
+        return False
+
+def list_system_checkpoints():
+    """Lista checkpoints disponíveis"""
+    try:
+        checkpoints = checkpoint_manager.list_checkpoints()
+        if not checkpoints:
+            print("\n\033[93mNenhum checkpoint encontrado\033[0m")
+            return
+            
+        print("\n\033[92mCheckpoints Disponíveis:\033[0m")
+        for cp in checkpoints:
+            # Formata timestamp
+            ts = datetime.fromisoformat(cp["timestamp"])
+            ts_str = ts.strftime("%d/%m/%Y %H:%M:%S")
+            
+            print(f"\nID: \033[96m{cp['id']}\033[0m")
+            print(f"Mensagem: {cp['message']}")
+            print(f"Criado em: {ts_str}")
+            
+            # Marca checkpoint atual
+            if cp["id"] == checkpoint_manager.checkpoints["current"]:
+                print("\033[92m✓ Checkpoint Atual\033[0m")
+                
+    except Exception as e:
+        print(f"\033[91mErro ao listar checkpoints: {str(e)}\033[0m")
 
 def main():
-    init_db()  # Inicializa o banco de dados
-    clear_screen()
-    print_with_typing("👋 Olá! Eu sou o Nexus, seu assistente virtual com IA!")
-    print_with_typing("Estou aqui para ajudar você com qualquer tarefa de programação ou sistema.")
-    print_with_typing("Usando Groq com modelo Mixtral-8x7b")
-    print_with_typing("Pode me dizer naturalmente o que precisa, ou digite 'ajuda' para ver comandos específicos.")
-    print()
-
-    # Cria pasta workspace se não existir
-    os.makedirs(WORKSPACE_DIR, exist_ok=True)
-
-    # Inicializa os clientes de IA
-    groq_client = None
-    prompt_manager = None
-    personality = None
-
+    """Função principal do assistente"""
+    global groq_client, personality
+    
     try:
-        print_with_typing("🔄 Inicializando Groq...")
-        groq_client = GroqClient()
-        prompt_manager = PromptManager()
-        personality = prompt_manager.get_prompt('personality')
-        if not personality:
-            print("⚠️ Aviso: Personalidade não encontrada, usando padrão")
-            personality = {
-                "system": "Você é o Nexus, um assistente virtual amigável e proativo.",
-                "template": "{input}"
-            }
-    except Exception as e:
-        print(f"\033[91mErro ao inicializar IA:\033[0m {str(e)}")
-        print("Continuando sem suporte a IA...")
-
-    while True:
+        # Inicializa sistemas
+        initialize_systems()
+        
+        # Configura o caminho do .env
+        ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+        print(f"🔍 Procurando .env em: {ENV_PATH}")
+        
+        # Carrega variáveis de ambiente e mostra debug
+        load_dotenv(dotenv_path=ENV_PATH, verbose=True)
+        print(f"📁 Diretório atual: {os.getcwd()}")
+        print(f"🔑 GROQ_API_KEY: {'***' + os.getenv('GROQ_API_KEY')[-4:] if os.getenv('GROQ_API_KEY') else 'não encontrado'}")
+        
+        # Interface inicial
+        clear_screen()
+        print_with_typing("👋 Olá! Eu sou o Nexus, seu assistente virtual com IA!")
+        print_with_typing("Estou aqui para ajudar você com qualquer tarefa de programação ou sistema.")
+        print_with_typing("Usando Groq com modelo Mixtral-8x7b")
+        print_with_typing("Pode me dizer naturalmente o que precisa, ou digite 'ajuda' para ver comandos específicos.")
+        print()
+        
+        # Cria pasta workspace se não existir
+        os.makedirs(WORKSPACE_DIR, exist_ok=True)
+        
         try:
-            print()  # Linha extra antes da entrada do usuário
-            print("\033[96mVocê: ", end="")
-            user_input = input().strip()  # Remove a cor do input
-            print(f"\033[96m\033[3m{get_br_time()}\033[0m")  # Horário em itálico
-
-            if not user_input:
-                continue
-
-            if user_input.lower() == 'sair':
-                print()  # Linha extra antes da resposta
-                print("\033[38;5;46mNexus: Até logo! Foi um prazer ajudar!")
-                print(f"\033[38;5;46m\033[3m{get_br_time()}\033[0m")  # Horário em itálico
-                break
-
-            # Mostra "Nexus está digitando..." com animação
-            print()  # Linha extra antes do "está digitando"
-            print("\033[93mNexus está digitando\033[0m", end="")
-            for _ in range(3):
-                time.sleep(0.5)
-                print(".", end="", flush=True)
-            print("\r" + " "*30 + "\r", end="")
-
-            response = ""
-            if user_input.lower() == 'ajuda':
-                response = (
-                    "Estou aqui para ajudar! Você pode:\n\n"
-                    "1. Falar naturalmente comigo sobre qualquer tarefa\n"
-                    "2. Usar comandos específicos:\n\n"
-                    "Comandos do Sistema:\n"
-                    "- status: Mostra informações do sistema\n"
-                    "- hora: Mostra a data e hora atual\n"
-                    "- memoria: Mostra o uso de memória\n"
-                    "- disco: Mostra o uso do disco\n"
-                    "- limpar: Limpa a tela\n"
-                    "- processos: Lista os processos ativos\n"
-                    "- rede: Mostra informações de rede\n\n"
-                    "Comandos de IA:\n"
-                    "- codigo <descrição>: Gera código baseado na descrição\n"
-                    "- explicar <código>: Explica o código fornecido\n"
-                    "- melhorar <código>: Sugere melhorias para o código\n"
-                    "- debug <código>: Ajuda a encontrar problemas no código\n"
-                    "- projeto <descrição>: Cria estrutura de projeto\n"
-                    "- revisar <código>: Faz revisão detalhada do código\n"
-                    "- arquitetura <descrição>: Projeta arquitetura de sistema\n"
-                    "- sistema <comando>: Ajuda com administração do sistema\n\n"
-                    "Mas não se preocupe em decorar comandos, pode simplesmente\n"
-                    "me dizer o que precisa que eu vou entender! 😊"
-                )
-            elif user_input.lower() == 'status':
-                response = f"Sistema: {os.uname().sysname} {os.uname().release}\nHostname: {os.uname().nodename}"
-            elif user_input.lower() == 'hora':
-                now = datetime.now()
-                response = f"Agora são {now.strftime('%H:%M:%S do dia %d/%m/%Y')}"
-            elif user_input.lower() == 'memoria':
-                with os.popen('free -h') as f:
-                    response = f.read()
-            elif user_input.lower() == 'disco':
-                with os.popen('df -h /') as f:
-                    response = f.read()
-            elif user_input.lower() == 'limpar':
-                clear_screen()
-                continue
-            elif user_input.lower() == 'processos':
-                with os.popen('ps aux | head -6') as f:
-                    response = f.read()
-            elif user_input.lower() == 'rede':
-                with os.popen('ip addr show') as f:
-                    response = f.read()
-            # Comandos de IA
-            elif user_input.lower().startswith(('codigo ', 'projeto ', 'revisar ', 'arquitetura ', 'sistema ', 'explicar ', 'melhorar ', 'debug ')):
-                if groq_client:
-                    # Identifica o comando e obtém o prompt apropriado
-                    cmd = user_input.split(' ')[0].lower()
-                    content = user_input[len(cmd)+1:].strip()
-                    
-                    prompt_map = {
-                        'codigo': 'code_assistant',
-                        'projeto': 'file_creator',
-                        'revisar': 'code_reviewer',
-                        'arquitetura': 'project_architect',
-                        'sistema': 'system_admin'
-                    }
-                    
-                    if cmd in prompt_map:
-                        prompt_name = prompt_map[cmd]
-                        prompt = prompt_manager.get_prompt(prompt_name)
-                        if prompt:
-                            # Combina a personalidade com o prompt específico
-                            system = personality['system'] + "\n\n" + prompt['system']
-                            response = groq_client._generate_response(
-                                prompt['template'].format(**{
-                                    'instruction': content,
-                                    'code': content,
-                                    'project_description': content,
-                                    'task': content
-                                }),
-                                system=system
-                            )
-                        else:
-                            response = groq_client._generate_response(content, system=personality['system'])
-                    else:
-                        # Para comandos que não precisam de prompt específico
-                        if cmd == 'explicar':
-                            response = groq_client.explain_code(content)
-                        elif cmd == 'melhorar':
-                            response = groq_client.improve_code(content)
-                        elif cmd == 'debug':
-                            response = groq_client.debug_code(content)
-                else:
-                    response = "Desculpe, o suporte a IA não está disponível no momento."
-            else:
-                response = handle_user_input(user_input)
-                
-            # Mostra a resposta com efeito de digitação
-            print(f"\033[38;5;46mNexus: ", end="")
-            for char in response:
-                sys.stdout.write(char)
-                sys.stdout.flush()
-                time.sleep(0.01)
-            print()  # Nova linha após a resposta
-            print(f"\033[38;5;46m\033[3m{get_br_time()}\033[0m")  # Horário em itálico
-
-        except KeyboardInterrupt:
-            print("\n\033[92mNexus:\033[0m Até logo! Foi um prazer ajudar!")
-            break
+            print_with_typing("🔄 Inicializando Groq...")
+            groq_client = Groq(api_key=os.getenv('GROQ_API_KEY'))
+            print_with_typing("✨ Groq inicializado com modelo mixtral-8x7b-32768")
         except Exception as e:
-            print(f"\033[91mErro:\033[0m {str(e)}")
+            print(f"\033[91mErro ao inicializar IA:\033[0m {str(e)}")
+            print("Continuando sem suporte a IA...")
+        
+        while True:
+            try:
+                print()  # Linha extra antes da entrada do usuário
+                print("\033[96mVocê: ", end="", flush=True)
+                user_input = input().strip()
+                
+                if not user_input:
+                    continue
+                    
+                print(f"\033[96m\033[3m{get_br_time()}\033[0m")
+                
+                if user_input.lower() == 'sair':
+                    print("\n\033[92mNexus:\033[0m Até logo! Foi um prazer ajudar!")
+                    break
+                
+                result = handle_user_input(user_input)
+                if isinstance(result, tuple):
+                    response, checkpoint_id = result
+                else:
+                    response, checkpoint_id = result, None
+                    
+                if response:
+                    print()  # Linha extra entre usuário e IA
+                    print(f"\033[92mNexus:\033[0m {response}")
+                    # Horário e código de restauração na cor verde
+                    print(f"\033[92m{get_br_time()}")
+                    if checkpoint_id:
+                        print(f"\033[92m✓ !restore {checkpoint_id}\033[0m")
+                        print()
+                
+            except EOFError:
+                print("\n\033[92mNexus:\033[0m Até logo! Foi um prazer ajudar!")
+                break
+            except KeyboardInterrupt:
+                print("\n\033[92mNexus:\033[0m Até logo! Foi um prazer ajudar!")
+                break
+            except Exception as e:
+                print(f"\033[91mErro:\033[0m {str(e)}")
+    
+    except Exception as e:
+        print(f"Erro fatal: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as e:
         print(f"Erro fatal: {e}")
-
-class FileState:
-    def __init__(self):
-        self.filename = None
-        self.content = None
-        self.state = "idle"
-        self.action = None
-
-file_state = FileState()
-
-def clear_screen():
-    os.system('clear' if os.name == 'posix' else 'cls')
-
-def print_with_typing(text, delay=0.01):
-    for char in text:
-        sys.stdout.write(char)
-        sys.stdout.flush()
-        time.sleep(delay)
-    print()
-
-def get_br_time():
-    tz = pytz.timezone('America/Sao_Paulo')
-    now = datetime.now(tz)
-    return now.strftime("%H:%M:%S")
-
-def is_safe_path(path):
-    """Verifica se o caminho é seguro para escrita"""
-    # Converte para caminho absoluto
-    abs_path = os.path.abspath(path)
-    # Verifica se não está tentando acessar diretório pai
-    if '..' in path:
-        return False
-    # Verifica se o diretório pai existe
-    parent_dir = os.path.dirname(abs_path)
-    if not os.path.exists(parent_dir):
-        return False
-    # Verifica permissões de escrita
-    return os.access(parent_dir, os.W_OK)
-
-def get_safe_filepath(filename):
-    """Retorna um caminho seguro para o arquivo"""
-    # Se o caminho é absoluto ou relativo com diretórios
-    if filename.startswith('/') or '/' in filename:
-        abs_path = os.path.abspath(filename)
-        if is_safe_path(abs_path):
-            return abs_path
-        else:
-            raise ValueError(f"Caminho inválido ou sem permissão: {abs_path}")
-    # Se é apenas um nome de arquivo, usa o workspace
-    return os.path.join(WORKSPACE_DIR, filename)
-
-def create_file(filename, content):
-    try:
-        filepath = get_safe_filepath(filename)
-        # Cria diretórios se necessário
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        with open(filepath, 'w') as f:
-            f.write(content)
-        add_to_history(filepath, 'create')
-        return True, filepath
-    except Exception as e:
-        print(f"\033[91mErro ao criar arquivo: {str(e)}\033[0m")
-        return False, None
-
-def delete_file(filename):
-    try:
-        filepath = get_safe_filepath(filename)
-        if os.path.exists(filepath):
-            os.remove(filepath)
-            add_to_history(filepath, 'delete')
-            return True
-        return False
-    except Exception as e:
-        print(f"\033[91mErro ao deletar arquivo: {str(e)}\033[0m")
-        return False
-
-message_cache = MessageCache()

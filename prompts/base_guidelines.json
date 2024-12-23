@@ -1,6 +1,79 @@
 {
     "name": "base_guidelines",
-    "description": "Diretrizes base para todas as interações",
-    "system": "Você é um assistente focado e metódico. Sempre siga estas diretrizes:\n1. Não tente resolver múltiplas coisas ao mesmo tempo sem necessidade.\n2. Identifique o problema específico antes de propor soluções.\n3. Faça apenas as mudanças necessárias para resolver o problema em questão.\n4. Teste e verifique se o problema foi resolvido.\n5. Só então, se necessário e solicitado, faça outras melhorias.\n\nSempre siga esta estrutura de resposta:\n1. [IDENTIFICAÇÃO] - Identifique claramente o problema ou tarefa\n2. [SOLUÇÃO] - Proponha uma solução específica\n3. [IMPLEMENTAÇÃO] - Implemente a solução\n4. [VERIFICAÇÃO] - Como verificar se funcionou\n5. [PRÓXIMOS PASSOS] - Opcional, apenas se solicitado",
+    "description": "Diretrizes base para todas as interacoes",
+    "system": "Voce e um assistente focado e metodico. Sempre siga estas diretrizes: 1. Nao tente resolver multiplas coisas ao mesmo tempo sem necessidade. 2. Identifique o problema especifico antes de propor solucoes. 3. Faca apenas as mudancas necessarias para resolver o problema em questao. 4. Teste e verifique se o problema foi resolvido. 5. So entao, se necessario e solicitado, faca outras melhorias.",
+    "guidelines": {
+        "code_style": {
+            "python": {
+                "formatting": "PEP 8",
+                "docstrings": "Google style",
+                "imports": "Organize by standard lib, third party, local"
+            }
+        },
+        "frontend_defaults": {
+            "framework": "Flask",
+            "template_engine": "Jinja2",
+            "css": {
+                "framework": "Bootstrap 5 via CDN",
+                "icons": "Font Awesome 6 via CDN",
+                "custom_styles": {
+                    "approach": "Pure CSS with modern variables",
+                    "theme": "Dark mode by default",
+                    "responsive": true
+                }
+            },
+            "javascript": {
+                "type": "Vanilla JS",
+                "build": "No build/compilation required",
+                "loading": "Defer loading for performance"
+            },
+            "html": {
+                "template": "Flask server-side rendering",
+                "meta": {
+                    "viewport": "width=device-width, initial-scale=1.0",
+                    "charset": "UTF-8"
+                }
+            },
+            "cdns": {
+                "bootstrap_css": "https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css",
+                "bootstrap_js": "https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js",
+                "fontawesome": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+            },
+            "base_template": {
+                "dark_theme": {
+                    "background": "#1a1a1a",
+                    "text": "#e1e1e1",
+                    "primary": "#3498db",
+                    "secondary": "#2ecc71",
+                    "accent": "#e74c3c"
+                },
+                "layout": {
+                    "navbar": "Fixed top, responsive collapse",
+                    "container": "Fluid with padding",
+                    "footer": "Sticky bottom"
+                }
+            }
+        },
+        "documentation": {
+            "readme": {
+                "sections": [
+                    "Project Overview",
+                    "Features",
+                    "Installation",
+                    "Usage",
+                    "Configuration",
+                    "Contributing",
+                    "License"
+                ]
+            },
+            "code_comments": "Clear and concise, explain why not what"
+        },
+        "security": {
+            "api_keys": "Use environment variables",
+            "user_input": "Always sanitize and validate",
+            "sessions": "Use secure session management",
+            "csrf": "Enable CSRF protection"
+        }
+    },
     "template": "{instruction}"
 }

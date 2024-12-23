@@ -1,0 +1,79 @@
+{
+  "checkpoints": [
+    {
+      "id": "7fd86343",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola...",
+      "timestamp": "2024-12-23T11:18:44.444039",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "d8dd9257",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola...",
+      "timestamp": "2024-12-23T11:20:55.236199",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "c324b57d",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola...",
+      "timestamp": "2024-12-23T11:24:05.626622",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "65392253",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola...",
+      "timestamp": "2024-12-23T11:37:14.008109",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "7fbf71c1",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola...",
+      "timestamp": "2024-12-23T11:40:47.252320",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "5367115f",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola...",
+      "timestamp": "2024-12-23T11:47:33.889960",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "67cfc738",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola...",
+      "timestamp": "2024-12-23T11:51:19.811540",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    }
+  ],
+  "current": "67cfc738",
+  "metadata": {
+    "last_checkpoint": "2024-12-23T11:51:19.811550",
+    "version": "1.0"
+  }
+}
