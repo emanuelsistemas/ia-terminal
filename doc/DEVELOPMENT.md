@@ -40,8 +40,8 @@ O sistema usa um esquema de cores consistente para melhor UX:
 
 #### 3.1 Mensagens do Usuário
 ```
-Você: [mensagem]              # Azul (\033[96m)
-[horário]                     # Azul + Itálico (\033[96m\033[3m)
+Você: [mensagem]              # Azul (\033[96m) com fundo escuro #12141d (\033[48;5;234m)
+[horário]                     # Azul + Itálico + fundo escuro (\033[96m\033[3m\033[48;5;234m)
 ```
 
 #### 3.2 Mensagens da IA
@@ -82,7 +82,7 @@ checkpoints/
 1. **Entrada do Usuário**
    ```python
    user_input = input().strip()
-   print(f"\033[96m\033[3m{get_br_time()}\033[0m")
+   print(f"\033[96m\033[3m\033[48;5;234m{get_br_time()}\033[0m")
    ```
 
 2. **Processamento**

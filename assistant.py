@@ -393,13 +393,14 @@ def main():
         while True:
             try:
                 print()  # Linha extra antes da entrada do usuário
-                print("\033[96mVocê: ", end="", flush=True)
+                print("\033[96m\033[48;5;234mVocê: ", end="", flush=True)  # Cor de fundo escura
                 user_input = input().strip()
+                print("\033[0m", end="")  # Reset das cores
                 
                 if not user_input:
                     continue
                     
-                print(f"\033[96m\033[3m{get_br_time()}\033[0m")
+                print(f"\033[96m\033[48;5;234m\033[3m{get_br_time()}\033[0m")  # Horário com fundo escuro
                 
                 if user_input.lower() == 'sair':
                     print("\n\033[92mNexus:\033[0m Até logo! Foi um prazer ajudar!")
