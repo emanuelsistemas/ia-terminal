@@ -79,11 +79,21 @@
         "messages": "messages.json",
         "chroma": "chroma_db"
       }
+    },
+    {
+      "id": "320c32a2",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola como vai...",
+      "timestamp": "2024-12-23T12:05:51.652570",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
     }
   ],
-  "current": "6ec3b080",
+  "current": "320c32a2",
   "metadata": {
-    "last_checkpoint": "2024-12-23T12:03:21.628461",
+    "last_checkpoint": "2024-12-23T12:05:51.652601",
     "version": "1.0"
   }
 }

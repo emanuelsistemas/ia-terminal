@@ -411,11 +411,14 @@ def main():
         while True:
             try:
                 print()  # Linha extra antes da entrada do usuário
-                user_input = input("\033[96m\033[48;5;234mVocê: \033[0m").strip()
+                print("Você: ", end="", flush=True)  # Input sem formatação
+                user_input = input().strip()
                 
                 if not user_input:
                     continue
-                    
+                
+                # Imprime a mensagem com o fundo completo
+                print_user_message(user_input)
                 print_user_message(None, get_br_time())
                 
                 if user_input.lower() == 'sair':
