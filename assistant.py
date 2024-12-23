@@ -365,13 +365,17 @@ def print_user_message(message, timestamp=None):
     width = get_terminal_width()
     if timestamp:
         # Imprime o timestamp com fundo preenchendo a linha
+        print(f"\033[96m\033[48;5;234m{' ' * width}\033[0m")  # Linha acima
         print(f"\033[96m\033[48;5;234m\033[3m{timestamp}{' ' * (width - len(timestamp))}\033[0m")
+        print(f"\033[96m\033[48;5;234m{' ' * width}\033[0m")  # Linha abaixo
     else:
         # Calcula o espaço necessário para preencher a linha após a mensagem
         prefix = "Você: "
         padding = width - len(prefix) - len(message)
         # Move o cursor uma linha acima e limpa a linha
-        print(f"\033[1A\033[2K\033[96m\033[48;5;234m{prefix}{message}{' ' * padding}\033[0m")
+        print(f"\033[1A\033[2K\033[96m\033[48;5;234m{' ' * width}\033[0m")  # Linha acima
+        print(f"\033[96m\033[48;5;234m{prefix}{message}{' ' * padding}\033[0m")
+        print(f"\033[96m\033[48;5;234m{' ' * width}\033[0m")  # Linha abaixo
 
 def main():
     """Função principal do assistente"""

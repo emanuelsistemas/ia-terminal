@@ -99,11 +99,31 @@
         "messages": "messages.json",
         "chroma": "chroma_db"
       }
+    },
+    {
+      "id": "423c2979",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: ola como vai...",
+      "timestamp": "2024-12-23T12:13:05.855951",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
+    },
+    {
+      "id": "7936bd17",
+      "message": "Checkpoint autom\u00e1tico antes da resposta: preciso de uma ajuda...",
+      "timestamp": "2024-12-23T12:13:13.538224",
+      "files": {
+        "config": "config.json",
+        "messages": "messages.json",
+        "chroma": "chroma_db"
+      }
     }
   ],
-  "current": "fd57e87b",
+  "current": "7936bd17",
   "metadata": {
-    "last_checkpoint": "2024-12-23T12:09:24.335878",
+    "last_checkpoint": "2024-12-23T12:13:13.538236",
     "version": "1.0"
   }
 }
