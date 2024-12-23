@@ -12,6 +12,8 @@ import threading
 from memory.vector_store import VectorMemory
 from memory.config_store import ConfigStore
 from memory.checkpoint_manager import CheckpointManager
+from prompt_optimizer import PromptOptimizer
+from prompts.prompt_manager import PromptManager
 import shutil  # Para obter o tamanho do terminal
 
 # Configurações globais
@@ -51,6 +53,8 @@ config_store = None
 checkpoint_manager = None
 groq_client = None
 personality = None
+prompt_optimizer = None
+prompt_manager = None
 
 class MessageCache:
     def __init__(self, max_size=10):
@@ -133,12 +137,14 @@ def print_with_typing(text: str, delay: float = 0.01):
 
 def initialize_systems():
     """Inicializa todos os sistemas necessários"""
-    global message_cache, config_store, checkpoint_manager
+    global message_cache, config_store, checkpoint_manager, prompt_optimizer, prompt_manager
     
     # Inicializa sistemas
     message_cache = MessageCache()
     config_store = ConfigStore(CONFIG_DIR)
     checkpoint_manager = CheckpointManager(CHECKPOINT_DIR)
+    prompt_optimizer = PromptOptimizer()
+    prompt_manager = PromptManager()
 
 def add_message_to_history(role, content):
     """Adiciona mensagem ao histórico"""
@@ -281,74 +287,42 @@ def create_file(filename, content):
 
 def handle_user_input(user_input):
     """Processa entrada do usuário com sistema de memória em camadas"""
-    global groq_client, personality
-    
     try:
-        # Comandos especiais de checkpoint
-        if user_input.startswith("!checkpoint "):
-            message = user_input[11:].strip()
-            checkpoint_id = create_system_checkpoint(message)
-            if checkpoint_id:
-                print(f"\n✓ Checkpoint criado: {checkpoint_id}")
-                print(f"Para restaurar: !restore {checkpoint_id}")
-            return None
-            
-        elif user_input.startswith("!restore "):
-            checkpoint_id = user_input[9:].strip()
-            restore_system_checkpoint(checkpoint_id)
-            return "Sistema restaurado com sucesso!"
-            
-        elif user_input == "!checkpoints":
-            list_system_checkpoints()
-            return "Lista de checkpoints exibida acima!"
-            
-        # Processa comando de criação de arquivo
-        if user_input.lower().startswith("crie um arquivo "):
-            # Remove o comando inicial
-            params = user_input[16:].strip()
-            
-            # Tenta extrair nome do arquivo e conteúdo
-            if " com " in params:
-                filename, content = params.split(" com ", 1)
-                filename = filename.strip()
-                content = content.strip()
-                
-                # Cria o arquivo
-                success, message = create_file(filename, content)
-                return message, None if success else None
+        # Otimiza o prompt do usuário
+        optimized_input = prompt_optimizer.optimize(user_input)
         
-        # Cria checkpoint automático antes de cada resposta da IA
-        checkpoint_id = create_system_checkpoint(
-            f"Checkpoint automático antes da resposta: {user_input[:50]}..."
-        )
+        # Extrai palavras-chave para busca semântica
+        search_keywords = prompt_optimizer.get_semantic_keywords(user_input)
         
-        # Adiciona mensagem do usuário ao histórico
-        add_message_to_history("user", user_input)
-        
-        # Busca contexto relevante
-        context = message_cache.search_context(user_input)
+        # Busca contexto usando as palavras-chave
+        context = message_cache.search_context(search_keywords)
         
         # Gera resposta com IA
         if groq_client:
+            # Obtém os prompts do gerenciador
+            personality = prompt_manager.get_prompt("personality")
+            code_assistant = prompt_manager.get_prompt("code_assistant")
+            
             messages = [
-                {"role": "system", "content": "Você é um assistente virtual chamado Nexus. Mantenha suas respostas naturais e diretas. Se o usuário perguntar sobre conversas anteriores e não houver contexto fornecido, seja honesto e diga que não tem acesso ao histórico anterior neste momento."},
+                {"role": "system", "content": personality["system"]},
+                {"role": "system", "content": code_assistant["system"]},
             ]
             
-            # Busca contexto relevante no histórico
-            context = message_cache.search_context(user_input)
+            # Adiciona o prompt otimizado como contexto
+            messages.append({"role": "system", "content": f"Prompt otimizado do usuário: {optimized_input}"})
+            
+            # Adiciona contexto histórico se disponível
             if context:
                 context_str = "\n".join(context)
                 context_prompt = f"Histórico relevante da conversa:\n{context_str}\n\nUse estas informações para responder ao usuário de forma precisa sobre o que foi discutido anteriormente."
                 messages.append({"role": "system", "content": context_prompt})
-            else:
-                messages.append({"role": "system", "content": "Não foi encontrado histórico de conversas anteriores no momento."})
             
             # Adiciona histórico recente do cache
             recent_messages = message_cache.get_all()[-5:]  # Últimas 5 mensagens
             for msg in recent_messages:
                 messages.append({"role": msg[0], "content": msg[1]})
             
-            # Adiciona mensagem atual
+            # Adiciona a mensagem original do usuário
             messages.append({"role": "user", "content": user_input})
             
             completion = groq_client.chat.completions.create(
@@ -365,7 +339,7 @@ def handle_user_input(user_input):
             
             # Retorna a resposta com a cor verde
             response = f"\033[92m{response}\033[0m"
-            return response, checkpoint_id
+            return response, None
         else:
             return "Desculpe, o suporte a IA não está disponível no momento.", None
             
