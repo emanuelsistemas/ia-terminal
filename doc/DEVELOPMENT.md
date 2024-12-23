@@ -51,6 +51,10 @@ Nexus: [mensagem]             # Verde (\033[92m)
 ✓ !restore [checkpoint_id]    # Verde (\033[92m)
 ```
 
+#### 3.3 Espaçamento
+- Uma linha em branco entre a mensagem do usuário e a resposta da IA
+- Uma linha em branco após o código de restauração da IA
+
 ### 4. Sistema de Checkpoints
 
 #### 4.1 Estrutura

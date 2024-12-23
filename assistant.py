@@ -412,13 +412,13 @@ def main():
                     response, checkpoint_id = result, None
                     
                 if response:
-                    print()  # Linha extra entre usuário e IA
+                    print()  # Uma linha entre usuário e IA
                     print(f"\033[92mNexus:\033[0m {response}")
-                    # Horário e código de restauração na cor verde
-                    print(f"\033[92m{get_br_time()}")
+                    # Horário e código de restauração em verde e itálico
+                    print(f"\033[92m\033[3m{get_br_time()}")
                     if checkpoint_id:
                         print(f"\033[92m✓ !restore {checkpoint_id}\033[0m")
-                        print()
+                    print()  # Uma linha após a mensagem da IA
                 
             except EOFError:
                 print("\n\033[92mNexus:\033[0m Até logo! Foi um prazer ajudar!")
