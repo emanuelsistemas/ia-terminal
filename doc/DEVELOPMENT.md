@@ -1,4 +1,156 @@
-# Guia de Desenvolvimento
+# Guia de Desenvolvimento do Chat IA Terminal
+
+## Visão Geral do Sistema
+O Chat IA Terminal é um assistente virtual baseado em terminal que utiliza o modelo Mixtral-8x7b da Groq para processamento de linguagem natural. O sistema é projetado com uma arquitetura modular que inclui:
+
+### 1. Sistema de Memória em Camadas
+- **Cache em Memória**: Armazena as últimas 10 mensagens para contexto imediato
+- **Vector Store**: Armazena todo o histórico com busca semântica
+- **Checkpoints**: Sistema de restauração de estado para backup e recuperação
+
+### 2. Componentes Principais
+
+#### 2.1 Assistente Principal (assistant.py)
+- Gerencia o loop principal de interação
+- Processa entrada do usuário
+- Coordena todos os subsistemas
+- Formatação e exibição de mensagens
+
+```python
+def main():
+    # Loop principal do assistente
+    while True:
+        # Recebe input do usuário
+        # Processa com IA
+        # Exibe resposta formatada
+```
+
+#### 2.2 Sistema de Memória (memory/)
+- **vector_store.py**: Implementa busca semântica usando ChromaDB
+- **config_store.py**: Gerencia configurações persistentes
+- **checkpoint_manager.py**: Sistema de checkpoints para backup/restore
+
+#### 2.3 Cliente IA (Groq)
+- Utiliza o modelo Mixtral-8x7b
+- Configurado com temperatura 0.7
+- Limite de 1000 tokens por resposta
+
+### 3. Formatação e Cores
+O sistema usa um esquema de cores consistente para melhor UX:
+
+#### 3.1 Mensagens do Usuário
+```
+Você: [mensagem]              # Azul (\033[96m)
+[horário]                     # Azul + Itálico (\033[96m\033[3m)
+```
+
+#### 3.2 Mensagens da IA
+```
+Nexus: [mensagem]             # Verde (\033[92m)
+[horário]                     # Verde (\033[92m)
+✓ !restore [checkpoint_id]    # Verde (\033[92m)
+```
+
+### 4. Sistema de Checkpoints
+
+#### 4.1 Estrutura
+```
+checkpoints/
+├── checkpoints.json          # Índice de checkpoints
+└── data/
+    └── [checkpoint_id]/
+        ├── config.json       # Estado das configurações
+        └── messages.json     # Estado das mensagens
+```
+
+#### 4.2 Comandos de Checkpoint
+- `!checkpoint [mensagem]`: Cria novo checkpoint
+- `!restore [id]`: Restaura estado
+- `!checkpoints`: Lista checkpoints disponíveis
+
+#### 4.3 Criação Automática
+- Checkpoints são criados antes de cada resposta da IA
+- IDs são únicos e baseados em hash
+- Mensagem automática inclui início da query
+
+### 5. Fluxo de Processamento
+
+1. **Entrada do Usuário**
+   ```python
+   user_input = input().strip()
+   print(f"\033[96m\033[3m{get_br_time()}\033[0m")
+   ```
+
+2. **Processamento**
+   ```python
+   # Cria checkpoint
+   checkpoint_id = create_system_checkpoint(message)
+   
+   # Busca contexto
+   context = message_cache.search_context(user_input)
+   
+   # Gera resposta
+   response = groq_client.chat.completions.create(...)
+   ```
+
+3. **Saída**
+   ```python
+   print(f"\033[92mNexus:\033[0m {response}")
+   print(f"\033[92m{get_br_time()}")
+   print(f"\033[92m✓ !restore {checkpoint_id}\033[0m")
+   ```
+
+### 6. Variáveis de Ambiente
+```bash
+GROQ_API_KEY=***            # Chave API da Groq
+TERM=xterm-256color         # Configuração do terminal
+```
+
+### 7. Diretórios do Projeto
+```
+chat-ia-terminal/
+├── assistant.py            # Script principal
+├── memory/                 # Sistema de memória
+├── doc/                    # Documentação
+├── prompts/               # Templates de prompts
+├── templates/             # Templates HTML
+└── workspace/             # Área de trabalho
+```
+
+### 8. Dependências Principais
+```python
+from groq import Groq       # API da Groq
+import chromadb            # Vector store
+import sqlite3             # Banco de dados local
+from dotenv import load_dotenv  # Variáveis de ambiente
+```
+
+## Notas de Desenvolvimento
+1. **Segurança**
+   - Nunca expor a API key
+   - Validar inputs do usuário
+   - Confirmar antes de restaurar checkpoints
+
+2. **Performance**
+   - Cache em memória para respostas rápidas
+   - Vector store para histórico longo
+   - Checkpoints incrementais
+
+3. **Manutenção**
+   - Documentar alterações
+   - Seguir padrão de commits
+   - Manter backups regulares
+
+## Próximos Passos
+1. Implementar testes automatizados
+2. Adicionar mais opções de personalização
+3. Melhorar sistema de busca semântica
+4. Implementar compressão de checkpoints
+
+## Troubleshooting
+1. **Erro de API**: Verificar GROQ_API_KEY
+2. **Erro de Checkpoint**: Verificar permissões
+3. **Erro de Vector Store**: Verificar ChromaDB
 
 ## Ambiente de Desenvolvimento
 

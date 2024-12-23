@@ -10,7 +10,7 @@ O Chat IA Terminal implementa um sistema de memória em três camadas que permit
 ├─────────────────┤
 │  Vector Store   │ → Histórico completo indexado
 ├─────────────────┤
-│  LLM (Groq)     │ → Processamento de novas entradas
+│  Checkpoints    │ → Snapshots do sistema
 └─────────────────┘
 ```
 
@@ -18,7 +18,7 @@ O Chat IA Terminal implementa um sistema de memória em três camadas que permit
 
 ### 1. Cache em Memória (MessageCache)
 
-- **Localização**: `assistant.py`
+- **Localização**: `memory/message_cache.py`
 - **Capacidade**: 10 mensagens mais recentes
 - **Tipo de Storage**: RAM (memória volátil)
 - **Velocidade**: Ultra-rápida
@@ -30,6 +30,13 @@ class MessageCache:
         self.messages = []
         self.max_size = max_size
         self.vector_memory = VectorMemory(CHROMA_DIR)
+        
+    def add(self, role, content):
+        # Adiciona mensagem ao cache
+        # Se exceder max_size, move para vector store
+        
+    def search_context(self, query):
+        # Busca contexto relevante no histórico
 ```
 
 ### 2. Vector Store (ChromaDB)
@@ -48,138 +55,146 @@ class VectorMemory:
             name="chat_memory",
             metadata={"hnsw:space": "cosine"}
         )
+        
+    def add_message(self, message):
+        # Vetoriza e armazena mensagem
+        
+    def search_similar(self, query):
+        # Busca mensagens semanticamente similares
+```
+
+### 3. Sistema de Checkpoints
+
+- **Localização**: `memory/checkpoint_manager.py`
+- **Capacidade**: Limitada por espaço em disco
+- **Tipo de Storage**: Disco (persistente)
+- **Velocidade**: Média
+- **Propósito**: Backup e restauração de estados do sistema
+
+```python
+class CheckpointManager:
+    def __init__(self, checkpoint_dir):
+        self.checkpoint_dir = checkpoint_dir
+        self.checkpoints = self.load_checkpoints()
+        
+    def create_checkpoint(self, message, config_store, message_cache):
+        # Cria snapshot do estado atual
+        # Salva configurações e mensagens
+        
+    def restore_checkpoint(self, checkpoint_id):
+        # Restaura sistema para estado anterior
 ```
 
 ## Fluxo de Dados
 
-### 1. Adição de Mensagens
+1. **Nova Mensagem**
+   ```
+   Input → Cache → Vector Store (se cache cheio)
+   ```
 
-```mermaid
-graph TD
-    A[Nova Mensagem] --> B{Cache Cheio?}
-    B -->|Não| C[Adiciona ao Cache]
-    B -->|Sim| D[Move Mensagem Antiga para Chroma]
-    D --> E[Mantém 10 Mais Recentes no Cache]
+2. **Busca de Contexto**
+   ```
+   Query → Cache + Vector Store → Resultados Combinados
+   ```
+
+3. **Checkpoint**
+   ```
+   Estado Atual → Snapshot → Arquivo em Disco
+   ```
+
+## Configurações
+
+### 1. Cache
+- **MAX_CACHE_SIZE**: 10 mensagens
+- **CACHE_CLEANUP_INTERVAL**: A cada nova mensagem
+
+### 2. Vector Store
+- **CHROMA_DIR**: "./chroma_db"
+- **SIMILARITY_THRESHOLD**: 0.7
+- **MAX_RESULTS**: 5
+
+### 3. Checkpoints
+- **CHECKPOINT_DIR**: "./checkpoints"
+- **MAX_CHECKPOINTS**: 100
+- **CHECKPOINT_FORMAT**: JSON
+
+## Estrutura de Arquivos
+
+```
+memory/
+├── message_cache.py     # Cache em memória
+├── vector_store.py      # Interface com ChromaDB
+├── checkpoint_manager.py # Sistema de checkpoints
+└── config_store.py      # Configurações persistentes
+
+chroma_db/              # Base de dados vetorial
+└── ...
+
+checkpoints/           # Snapshots do sistema
+├── checkpoints.json   # Índice de checkpoints
+└── data/
+    └── [checkpoint_id]/
+        ├── config.json
+        └── messages.json
 ```
 
-**Código Relevante**:
+## Notas de Implementação
+
+### 1. Segurança
+- Backups automáticos a cada N mensagens
+- Validação de integridade dos checkpoints
+- Sanitização de inputs
+
+### 2. Performance
+- Índice vetorial otimizado
+- Cache em memória para acesso rápido
+- Checkpoints incrementais
+
+### 3. Manutenção
+- Rotação de logs
+- Limpeza automática de checkpoints antigos
+- Compactação periódica do vector store
+
+## Comandos Disponíveis
+
+### Cache
 ```python
-def add(self, role, content):
-    self.messages.append((role, content))
-    if len(self.messages) > self.max_size:
-        to_archive = self.messages[:-self.max_size]
-        self.messages = self.messages[-self.max_size:]
-        self.vector_memory.archive_messages(to_archive)
+message_cache.add(role, content)
+message_cache.get_all()
+message_cache.clear()
 ```
 
-### 2. Recuperação de Contexto
-
-```mermaid
-graph TD
-    A[Input do Usuário] --> B[Pega 5 Msgs do Cache]
-    A --> C[Busca Semântica no Chroma]
-    B --> D[Combina Contextos]
-    C --> D
-    D --> E[Envia para LLM]
-```
-
-**Código Relevante**:
+### Vector Store
 ```python
-def get_chat_context(user_input):
-    recent = get_conversation_context(max_messages=5)
-    historical = message_cache.search_context(user_input)
-    
-    if historical:
-        context = f"""
-        Contexto histórico relevante:
-        {historical}
-        
-        Conversa atual:
-        {recent}
-        """
-    return context
+vector_memory.add_message(message)
+vector_memory.search_similar(query)
+vector_memory.clear()
 ```
 
-## Exemplo de Funcionamento
-
-### Estado Inicial (10 mensagens)
+### Checkpoints
+```python
+checkpoint_manager.create_checkpoint(message)
+checkpoint_manager.restore_checkpoint(id)
+checkpoint_manager.list_checkpoints()
 ```
-Cache: [msg1, msg2, msg3, msg4, msg5, msg6, msg7, msg8, msg9, msg10]
-Chroma: []
-```
-
-### Após 11ª mensagem
-```
-Cache: [msg2, msg3, msg4, msg5, msg6, msg7, msg8, msg9, msg10, msg11]
-Chroma: [msg1]
-```
-
-### Após 12ª mensagem
-```
-Cache: [msg3, msg4, msg5, msg6, msg7, msg8, msg9, msg10, msg11, msg12]
-Chroma: [msg1, msg2]
-```
-
-## Benefícios
-
-1. **Performance Otimizada**
-   - Cache rápido para contexto recente
-   - Arquivamento automático de mensagens antigas
-   - Busca semântica eficiente no histórico
-
-2. **Memória Persistente**
-   - Histórico completo preservado
-   - Recuperação inteligente por relevância
-   - Não perde contexto importante
-
-3. **Uso Eficiente de Recursos**
-   - Memória RAM limitada (max 10 mensagens)
-   - Armazenamento em disco otimizado
-   - Indexação vetorial para busca rápida
-
-## Configuração
-
-1. **Cache**
-   ```python
-   message_cache = MessageCache(max_size=10)  # Ajuste conforme necessário
-   ```
-
-2. **Chroma**
-   ```python
-   CHROMA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'chroma_db')
-   vector_memory = VectorMemory(CHROMA_DIR)
-   ```
-
-## Manutenção
-
-1. **Backup**
-   - O diretório `chroma_db` contém todo o histórico
-   - Faça backup regularmente
-   - Mantenha em local seguro
-
-2. **Limpeza**
-   ```python
-   message_cache.clear()  # Limpa cache e Chroma
-   ```
-
-3. **Monitoramento**
-   - Verifique o tamanho do diretório `chroma_db`
-   - Monitore uso de RAM do cache
-   - Observe tempos de resposta
 
 ## Troubleshooting
 
-1. **Cache Lento**
-   - Reduza `max_size`
-   - Verifique uso de memória
-   - Limpe cache se necessário
+1. **Cache Overflow**
+   - Sintoma: Lentidão em respostas
+   - Solução: Ajustar MAX_CACHE_SIZE
 
-2. **Chroma Lento**
-   - Verifique tamanho do índice
-   - Otimize consultas
-   - Considere limpeza periódica
+2. **Vector Store Lento**
+   - Sintoma: Buscas demoradas
+   - Solução: Otimizar índice ou reduzir dados
 
-3. **Problemas de Contexto**
-   - Ajuste número de mensagens no cache
-   - Verifique qualidade das embeddings
-   - Otimize prompt de busca
+3. **Checkpoints Corrompidos**
+   - Sintoma: Erro ao restaurar
+   - Solução: Usar backup mais recente
+
+## Próximos Passos
+
+1. Implementar compressão de checkpoints
+2. Adicionar suporte a múltiplos vector stores
+3. Melhorar algoritmo de busca semântica
+4. Implementar cache distribuído
